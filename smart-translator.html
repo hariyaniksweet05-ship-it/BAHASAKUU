@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart Translator</title>
+
+<style>
+body{
+    margin:0;
+    font-family:Arial, sans-serif;
+    background:linear-gradient(135deg,#141e30,#243b55);
+    color:white;
+}
+
+#home{
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+    text-align:center;
+    padding:20px;
+}
+
+.startBtn{
+    padding:15px 30px;
+    background:#27ae60;
+    border:none;
+    border-radius:10px;
+    font-size:18px;
+    color:white;
+    cursor:pointer;
+    transition:0.3s;
+}
+
+.startBtn:hover{
+    background:#219150;
+}
+
+#app{
+    display:none;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+    padding:20px;
+    box-sizing:border-box;
+}
+
+.container{
+    background:white;
+    color:black;
+    padding:20px;
+    border-radius:15px;
+    width:100%;
+    max-width:370px;
+    text-align:center;
+    box-shadow:0 8px 25px rgba(0,0,0,0.3);
+}
+
+textarea{
+    width:100%;
+    height:80px;
+    padding:10px;
+    border-radius:10px;
+    border:1px solid #ccc;
+    margin:10px 0;
+    resize:none;
+    box-sizing:border-box;
+}
+
+select, button{
+    width:100%;
+    padding:10px;
+    margin-top:10px;
+    border-radius:10px;
+    border:none;
+    box-sizing:border-box;
+    font-size:15px;
+}
+
+button{
+    color:white;
+    font-weight:bold;
+    cursor:pointer;
+    transition:0.3s;
+}
+
+.translate{background:#3498db;}
+.translate:hover{background:#2c80b9;}
+
+.speak{background:#f39c12;}
+.speak:hover{background:#d68910;}
+
+.exit{background:#e74c3c;}
+.exit:hover{background:#c0392b;}
+
+.result{
+    background:#f1f1f1;
+    padding:15px;
+    border-radius:10px;
+    margin-top:10px;
+    min-height:50px;
+    word-wrap:break-word;
+}
+</style>
+</head>
+<body>
+
+<div id="home">
+    <h1>🌍 Smart Translator</h1>
+    <p>Voice All Language • Simple • Stabil</p>
+    <button class="startBtn" onclick="startApp()">▶️ Mulai</button>
+</div>
+
+<div id="app">
+    <div class="container">
+        <h2>Translator</h2>
+
+        <textarea id="text" placeholder="Ketik teks..."></textarea>
+
+        <select id="from">
+            <option value="auto">Auto</option>
+            <option value="id">Indonesia</option>
+            <option value="en">Inggris</option>
+            <option value="ja">Jepang</option>
+            <option value="ko">Korea</option>
+            <option value="zh-CN">China</option>
+            <option value="ar">Arab</option>
+        </select>
+
+        <select id="to">
+            <option value="en">Inggris</option>
+            <option value="id">Indonesia</option>
+            <option value="ja">Jepang</option>
+            <option value="ko">Korea</option>
+            <option value="zh-CN">China</option>
+            <option value="ar">Arab</option>
+        </select>
+
+        <button class="translate" onclick="translateText()">🌐 Terjemahkan</button>
+
+        <div class="result" id="result">Hasil akan muncul di sini...</div>
+
+        <button class="speak" onclick="speakText()">🔊 Dengarkan</button>
+        <button class="exit" onclick="exitApp()">❌ Exit</button>
+    </div>
+</div>
+
+<script>
+let hasilTranslate = "";
+let voices = [];
+
+function loadVoices(){
+    voices = speechSynthesis.getVoices();
+}
+speechSynthesis.onvoiceschanged = loadVoices;
+loadVoices();
+
+function startApp(){
+    document.getElementById("home").style.display = "none";
+    document.getElementById("app").style.display = "flex";
+}
+
+async function translateText(){
+    let text = document.getElementById("text").value.trim();
+    let from = document.getElementById("from").value;
+    let to = document.getElementById("to").value;
+
+    if(!text){
+        alert("Masukkan teks dulu!");
+        return;
+    }
+
+    document.getElementById("result").innerText = "Menerjemahkan...";
+
+    try{
+        let url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${from}&tl=${to}&dt=t&dt=rm&q=${encodeURIComponent(text)}`;
+        let res = await fetch(url);
+        let data = await res.json();
+
+        let hasil = data[0].map(item => item[0]).join("");
+
+        let readable = "";
+        data[0].forEach(item => {
+            if(item[3]) readable += item[3] + " ";
+        });
+
+        hasilTranslate = hasil;
+        document.getElementById("result").innerText = readable.trim() || hasil;
+
+    } catch {
+        document.getElementById("result").innerText = "Terjadi error!";
+    }
+}
+
+function speakText(){
+    if(!hasilTranslate){
+        alert("Terjemahkan dulu!");
+        return;
+    }
+
+    let to = document.getElementById("to").value;
+
+    let langMap = {
+        "en": "en-US",
+        "id": "id-ID",
+        "ja": "ja-JP",
+        "ko": "ko-KR",
+        "zh-CN": "zh-CN",
+        "ar": "ar-SA"
+    };
+
+    let targetLang = langMap[to] || "en-US";
+    let speech = new SpeechSynthesisUtterance(hasilTranslate);
+
+    let selectedVoice = voices.find(v => v.lang === targetLang);
+
+    if(!selectedVoice){
+        selectedVoice = voices.find(v => v.lang.startsWith(targetLang.split('-')[0]));
+    }
+
+    if(!selectedVoice && voices.length > 0){
+        selectedVoice = voices[0];
+    }
+
+    if(selectedVoice){
+        speech.voice = selectedVoice;
+    }
+
+    speech.lang = targetLang;
+    speech.rate = 0.9;
+    speech.pitch = 1;
+
+    speechSynthesis.cancel();
+    speechSynthesis.speak(speech);
+}
+
+function exitApp(){
+    if(confirm("Keluar aplikasi?")){
+        location.reload();
+    }
+}
+</script>
+
+</body>
+</html>
